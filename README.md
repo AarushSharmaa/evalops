@@ -30,6 +30,14 @@ print(result.faithfulness)       # float 0–1
 print(result.answer_relevance)   # float 0–1
 print(result.context_precision)  # float 0–1
 print(result.reasoning)          # {"faithfulness": "...", "answer_relevance": "...", "context_precision": "..."}
+print(result.parse_errors)       # [] if all metrics parsed cleanly
+
+# readable summary
+print(result)
+
+# boolean gate — useful in CI
+if not result.passed(threshold=0.7):
+    raise ValueError("RAG quality below threshold")
 ```
 
 ---
@@ -43,6 +51,10 @@ print(result.reasoning)          # {"faithfulness": "...", "answer_relevance": "
 | `context_precision` | Was the retrieved context useful? | Bad retrieval |
 
 All scores are `float` from 0.0 to 1.0. `EvalResult.reasoning` gives a one-sentence explanation per metric.
+
+`EvalResult.parse_errors` is a list of error strings for any metric where the LLM response couldn't be parsed. A score of `0.0` with a parse error means the response was unreadable — not that the answer was actually bad. Empty list means all metrics parsed cleanly.
+
+`EvalResult.passed(threshold=0.7)` returns `True` if all three scores meet the threshold — a one-liner CI gate.
 
 ---
 

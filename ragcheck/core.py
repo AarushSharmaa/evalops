@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Callable, List
 
 
@@ -12,6 +12,31 @@ class EvalResult:
     answer_relevance: float
     context_precision: float
     reasoning: dict[str, str]
+    parse_errors: list[str] = field(default_factory=list)
+
+    def passed(self, threshold: float = 0.7) -> bool:
+        """Return True if all three scores meet the threshold.
+
+        Useful as a boolean gate in CI pipelines:
+
+            if not result.passed(threshold=0.8):
+                raise ValueError("RAG quality below threshold")
+        """
+        return (
+            self.faithfulness >= threshold
+            and self.answer_relevance >= threshold
+            and self.context_precision >= threshold
+        )
+
+    def __str__(self) -> str:
+        lines = [
+            f"  faithfulness      {self.faithfulness:.2f}  {self.reasoning.get('faithfulness', '')}",
+            f"  answer_relevance  {self.answer_relevance:.2f}  {self.reasoning.get('answer_relevance', '')}",
+            f"  context_precision {self.context_precision:.2f}  {self.reasoning.get('context_precision', '')}",
+        ]
+        if self.parse_errors:
+            lines.append(f"  parse_errors      {self.parse_errors}")
+        return "\n".join(lines)
 
 
 def _format_contexts(contexts: List[str]) -> str:
@@ -20,13 +45,17 @@ def _format_contexts(contexts: List[str]) -> str:
     return "\n".join(f"[{i+1}] {ctx}" for i, ctx in enumerate(contexts))
 
 
-def _parse_llm_json(response: str) -> tuple[float, str]:
-    """Parse LLM response into (score, reasoning). Falls back gracefully on bad JSON."""
-    def extract(obj: dict) -> tuple[float, str]:
+def _parse_llm_json(response: str) -> tuple[float, str, str | None]:
+    """Parse LLM response into (score, reasoning, error).
+
+    Returns a non-None error string if parsing failed — callers use this
+    to populate EvalResult.parse_errors so silent failures are visible.
+    """
+    def extract(obj: dict) -> tuple[float, str, str | None]:
         score = float(obj.get("score", 0.0))
         score = max(0.0, min(1.0, score))
         reasoning = str(obj.get("reasoning", ""))
-        return score, reasoning
+        return score, reasoning, None
 
     try:
         parsed = json.loads(response.strip())
@@ -38,11 +67,14 @@ def _parse_llm_json(response: str) -> tuple[float, str]:
     match = re.search(r'\{[^{}]*\}', response, re.DOTALL)
     if match:
         try:
-            return extract(json.loads(match.group()))
+            parsed = json.loads(match.group())
+            if isinstance(parsed, dict):
+                return extract(parsed)
         except (json.JSONDecodeError, ValueError, TypeError):
             pass
 
-    return 0.0, f"JSON parse error: {response[:200]}"
+    error = f"JSON parse error: {response[:200]!r}"
+    return 0.0, error, error
 
 
 def _faithfulness_prompt(question: str, answer: str, contexts: List[str]) -> str:
@@ -107,18 +139,31 @@ def evaluate(
         llm_fn: Any callable that takes a prompt string and returns a string.
 
     Returns:
-        EvalResult with faithfulness, answer_relevance, context_precision scores (0-1)
-        and per-metric reasoning strings.
+        EvalResult with faithfulness, answer_relevance, context_precision scores (0-1),
+        per-metric reasoning strings, and a parse_errors list (non-empty if any metric
+        failed to parse — a score of 0.0 with a parse error means the LLM response was
+        unparseable, not that the answer was actually bad).
     """
-    faith_score, faith_reason = _parse_llm_json(
+    if not callable(llm_fn):
+        raise TypeError(f"llm_fn must be callable, got {type(llm_fn).__name__!r}")
+    if not isinstance(question, str) or not question.strip():
+        raise ValueError("question must be a non-empty string")
+    if not isinstance(answer, str) or not answer.strip():
+        raise ValueError("answer must be a non-empty string")
+    if not isinstance(contexts, list):
+        raise TypeError(f"contexts must be a list, got {type(contexts).__name__!r}")
+
+    faith_score, faith_reason, faith_err = _parse_llm_json(
         llm_fn(_faithfulness_prompt(question, answer, contexts))
     )
-    relevance_score, relevance_reason = _parse_llm_json(
+    relevance_score, relevance_reason, relevance_err = _parse_llm_json(
         llm_fn(_answer_relevance_prompt(question, answer))
     )
-    precision_score, precision_reason = _parse_llm_json(
+    precision_score, precision_reason, precision_err = _parse_llm_json(
         llm_fn(_context_precision_prompt(question, contexts))
     )
+
+    parse_errors = [e for e in [faith_err, relevance_err, precision_err] if e is not None]
 
     return EvalResult(
         faithfulness=faith_score,
@@ -129,4 +174,5 @@ def evaluate(
             "answer_relevance": relevance_reason,
             "context_precision": precision_reason,
         },
+        parse_errors=parse_errors,
     )
