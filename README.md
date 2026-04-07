@@ -1,6 +1,6 @@
 # ragcheck
 
-Lightweight, reference-free RAG evaluation. Drop it into any project — no ground truth, no framework lock-in.
+Lightweight, reference-free RAG evaluation. Drop it into any project: no ground truth, no framework lock-in.
 
 ```
 pip install ragcheck
