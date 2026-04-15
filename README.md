@@ -1,6 +1,6 @@
 # evalops
 
-LLM output evaluation for teams that ship. Failure modes, regression gates, cost tracking, and quality history — no ground truth required, no framework lock-in.
+LLM output evaluation for teams that ship. Failure modes, regression gates, cost tracking, and quality history. No ground truth required, no framework lock-in.
 
 > *Because "it seemed fine in testing" is not an ops strategy.*
 
@@ -12,7 +12,9 @@ pip install evalops
 
 ## What it does
 
-LLM pipelines fail in three main ways: hallucination, off-topic answers, and poor retrieval. evalops scores all three with a single function call, using whatever LLM you already have.
+RAG pipelines fail in three specific ways: the answer invents facts not in the context, the answer ignores the actual question, or the retrieval pulled the wrong documents to begin with. Most teams discover which one only after a user complains.
+
+evalops scores all three with a single function call, using whatever LLM you already have. You get a label for what went wrong, not just a number.
 
 ---
 
@@ -208,7 +210,7 @@ new_result = evalops.evaluate(question, new_answer, contexts, cached_llm)
 diff = evalops.compare([result], [new_result])
 print(diff)
 # Top regressions:
-#   Q1: faithfulness 0.90 → 0.45  (Δ-0.45)
+#   Q1: faithfulness 0.90 -> 0.45  (d-0.45)
 # Net delta: faithfulness -0.45  answer_relevance +0.02  context_precision -0.01
 
 # 4. Block CI on quality drops — same mental model as jest snapshots
@@ -251,7 +253,7 @@ results = await evalops.aevaluate_batch(items, llm_fn, concurrency=5)
 
 ## Claim decomposition
 
-For higher-fidelity faithfulness scoring, evalops can break the answer into individual atomic claims and verify each one separately. Scores come with an audit trail showing exactly which claims weren't supported.
+For higher-fidelity faithfulness scoring, evalops can break the answer into individual atomic claims and verify each one separately. Scores come with an audit trail showing exactly which claims were not supported.
 
 ```python
 result = evalops.evaluate(
@@ -263,7 +265,7 @@ result = evalops.evaluate(
 )
 
 print(result.faithfulness)                  # fraction of supported claims, e.g. 0.75
-print(result.reasoning["faithfulness"])     # "3/4 claims supported. Unsupported: 'temperatures reach 500°C'"
+print(result.reasoning["faithfulness"])     # "3/4 claims supported. Unsupported: 'temperatures reach 500C'"
 ```
 
 When decomposition fails (unparseable LLM response), evalops falls back to the standard single-prompt faithfulness scoring automatically.
@@ -310,6 +312,26 @@ All kwargs supported by `evaluate()` work here too (e.g. `include_context_recall
 | Custom metrics | Pass a prompt function | Subclass-based |
 | Batch evaluation | `evaluate_batch()` | Built-in dataset support |
 | Install | `pip install evalops` | Framework adoption |
+
+---
+
+## How scoring works
+
+evalops uses LLM-as-a-judge: a capable language model evaluates outputs along dimensions that are too nuanced to specify as rules. Instead of matching strings or requiring labeled ground truth, the judge asks whether claims are grounded, whether the answer addresses the question, and whether the retrieved context was useful.
+
+This approach is backed by research. Zheng et al. (2023) showed LLM judges achieve over 80% agreement with human evaluators on open-ended tasks, comparable to human-human agreement. The RAGAS paper (Es et al., 2023) extended this to RAG-specific metrics.
+
+One practical benefit: as you upgrade the judge model, your evaluations get sharper without any changes to your eval suite. Better judge, better signal, same code.
+
+The prompts include structural defenses against common failure modes (truncated responses, parse errors, prompt injection). The [CHANGELOG](CHANGELOG.md) tracks every scoring-relevant change.
+
+---
+
+## A note from the author
+
+This is my first open-source contribution, and it comes from a practical place. The AI use cases I have worked on that went into production all ran into the same problem: no good way to know if quality was holding after a change. evalops is what I wanted to have.
+
+It is a work in progress. If something is unclear, missing, or broken for your use case, please open an issue. Feedback is genuinely welcome.
 
 ---
 
