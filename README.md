@@ -331,6 +331,10 @@ The prompts include structural defenses against common failure modes (truncated 
 
 This is my first open-source contribution, and it comes from a practical place. The AI use cases I have worked on that went into production all ran into the same problem: no good way to know if quality was holding after a change. evalops is what I wanted to have.
 
+The core idea is simple: teams should be able to start evaluating today — not after a signup, not after adopting a framework, not after configuring a dashboard. `pip install evalsystem`, write a test, ship. If eval has friction, people skip it. And when people skip eval, bad outputs reach users.
+
+I think of this as Eval Driven Development: treat evaluation as a first-class part of the development loop, not something bolted on after launch. Write an eval before you change a prompt, the same way you'd write a test before you change a function.
+
 It is a work in progress. If something is unclear, missing, or broken for your use case, please open an issue. Feedback is genuinely welcome.
 
 ---
