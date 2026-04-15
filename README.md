@@ -197,7 +197,7 @@ Use evalops as quality infrastructure, not just a one-off checker.
 ```python
 import evalops
 
-# 1. Wrap your LLM with a cache — repeated CI runs are free
+# 1. Wrap your LLM with a cache - repeated CI runs are free
 cached_llm = evalops.make_cached_llm(llm_fn, cache=":memory:")         # in-process
 # or: evalops.make_cached_llm(llm_fn, cache="evalops.cache.db")       # persists across runs
 
@@ -205,7 +205,7 @@ cached_llm = evalops.make_cached_llm(llm_fn, cache=":memory:")         # in-proc
 result = evalops.evaluate(question, answer, contexts, cached_llm, model="gpt-4o-mini")
 result.save_baseline("baseline.json")
 
-# 3. After a change (new prompt, model swap, retrieval tweak) — compare
+# 3. After a change (new prompt, model swap, retrieval tweak) - compare
 new_result = evalops.evaluate(question, new_answer, contexts, cached_llm)
 diff = evalops.compare([result], [new_result])
 print(diff)
@@ -213,7 +213,7 @@ print(diff)
 #   Q1: faithfulness 0.90 -> 0.45  (d-0.45)
 # Net delta: faithfulness -0.45  answer_relevance +0.02  context_precision -0.01
 
-# 4. Block CI on quality drops — same mental model as jest snapshots
+# 4. Block CI on quality drops - same mental model as jest snapshots
 evalops.assert_no_regression("baseline.json", new_result, tolerance=0.05)
 # raises AssertionError with metric name if any score drops > 0.05
 ```
@@ -227,7 +227,7 @@ evalops tells you what went wrong, not just what the score was.
 ```python
 result = evalops.evaluate(question, answer, contexts, llm_fn)
 
-# Human-readable failure labels — no extra LLM calls
+# Human-readable failure labels - no extra LLM calls
 print(result.failure_modes)   # ["hallucination", "retrieval_miss"]
 
 # Know what your eval suite costs per CI run
@@ -331,9 +331,9 @@ The prompts include structural defenses against common failure modes (truncated 
 
 This is my first open-source contribution, and it comes from a practical place. The AI use cases I have worked on that went into production all ran into the same problem: no good way to know if quality was holding after a change. evalops is what I wanted to have.
 
-The core idea is simple: teams should be able to start evaluating today — not after a signup, not after adopting a framework, not after configuring a dashboard. `pip install evalsystem`, write a test, ship. If eval has friction, people skip it. And when people skip eval, bad outputs reach users.
+The core idea is simple: teams should be able to start evaluating today - not after a signup, not after adopting a framework, not after configuring a dashboard. `pip install evalsystem`, write a test, ship. If eval has friction, people skip it. And when people skip eval, bad outputs reach users.
 
-I think of this as Eval Driven Development: treat evaluation as a first-class part of the development loop, not something bolted on after launch. Write an eval before you change a prompt, the same way you'd write a test before you change a function.
+There is a growing idea in the LLM community called Eval Driven Development - write an eval before you change a prompt, the same way you'd write a test before you change a function. evalops is my attempt to make that practical: low friction, no setup, just a function call and a quality gate.
 
 It is a work in progress. If something is unclear, missing, or broken for your use case, please open an issue. Feedback is genuinely welcome.
 
