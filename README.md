@@ -5,7 +5,7 @@ LLM output evaluation for teams that ship. Failure modes, regression gates, cost
 > *Because "it seemed fine in testing" is not an ops strategy.*
 
 ```
-pip install evalops
+pip install evalsystem
 ```
 
 ---
