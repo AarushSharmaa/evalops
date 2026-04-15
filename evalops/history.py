@@ -5,7 +5,7 @@ import sqlite3
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from ragcheck.core import EvalResult
+from evalops.core import EvalResult
 
 _CORE_METRICS = ["faithfulness", "answer_relevance", "context_precision", "context_recall"]
 
@@ -16,7 +16,7 @@ class History:
     No server required. All data stays in a local file you control.
 
     Example:
-        history = ragcheck.History("ragcheck.db")
+        history = evalops.History("evalops.db")
         history.log(results, label="after-prompt-v3")
         history.trend("faithfulness", days=30)
         history.summary()

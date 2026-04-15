@@ -1,25 +1,27 @@
-# ragcheck
+# evalops
 
-Lightweight, reference-free RAG evaluation. Drop it into any project with no ground truth required and no framework lock-in.
+LLM output evaluation for teams that ship. Failure modes, regression gates, cost tracking, and quality history — no ground truth required, no framework lock-in.
+
+> *Because "it seemed fine in testing" is not an ops strategy.*
 
 ```
-pip install ragcheck
+pip install evalops
 ```
 
 ---
 
 ## What it does
 
-RAG systems fail in three main ways: hallucination, off-topic answers, and poor retrieval. ragcheck scores all three with a single function call, using whatever LLM you already have.
+LLM pipelines fail in three main ways: hallucination, off-topic answers, and poor retrieval. evalops scores all three with a single function call, using whatever LLM you already have.
 
 ---
 
 ## Quickstart
 
 ```python
-import ragcheck
+import evalops
 
-result = ragcheck.evaluate(
+result = evalops.evaluate(
     question="What causes the northern lights?",
     answer="Charged particles from the sun collide with gases in Earth's atmosphere.",
     contexts=["Aurora borealis occurs when solar particles interact with the upper atmosphere."],
@@ -65,7 +67,7 @@ All scores are floats from 0.0 to 1.0.
 ## Optional: context_recall
 
 ```python
-result = ragcheck.evaluate(
+result = evalops.evaluate(
     question="...",
     answer="...",
     contexts=[...],
@@ -79,7 +81,7 @@ print(result.context_recall)  # float 0-1
 
 ## Custom metrics
 
-Extend ragcheck with your own evaluations without modifying the library:
+Extend evalops with your own evaluations without modifying the library:
 
 ```python
 def conciseness_prompt(question: str, answer: str, contexts: list) -> str:
@@ -89,7 +91,7 @@ def conciseness_prompt(question: str, answer: str, contexts: list) -> str:
         f'Respond ONLY with valid JSON: {{"score": <float 0-1>, "reasoning": "<one sentence>"}}'
     )
 
-result = ragcheck.evaluate(
+result = evalops.evaluate(
     question="...",
     answer="...",
     contexts=[...],
@@ -108,7 +110,7 @@ Custom metrics are included in `passed()`, `to_dict()`, and `to_json()` automati
 ## Batch evaluation
 
 ```python
-results = ragcheck.evaluate_batch(
+results = evalops.evaluate_batch(
     items=[
         {"question": "...", "answer": "...", "contexts": [...]},
         {"question": "...", "answer": "...", "contexts": [...]},
@@ -188,29 +190,29 @@ def llm_fn(prompt: str) -> str:
 
 ## Dev loop: compare + cache + baseline
 
-Use ragcheck as quality infrastructure, not just a one-off checker.
+Use evalops as quality infrastructure, not just a one-off checker.
 
 ```python
-import ragcheck
+import evalops
 
 # 1. Wrap your LLM with a cache — repeated CI runs are free
-cached_llm = ragcheck.make_cached_llm(llm_fn, cache=":memory:")         # in-process
-# or: ragcheck.make_cached_llm(llm_fn, cache="ragcheck.cache.db")       # persists across runs
+cached_llm = evalops.make_cached_llm(llm_fn, cache=":memory:")         # in-process
+# or: evalops.make_cached_llm(llm_fn, cache="evalops.cache.db")       # persists across runs
 
 # 2. Evaluate and save a quality baseline
-result = ragcheck.evaluate(question, answer, contexts, cached_llm, model="gpt-4o-mini")
+result = evalops.evaluate(question, answer, contexts, cached_llm, model="gpt-4o-mini")
 result.save_baseline("baseline.json")
 
 # 3. After a change (new prompt, model swap, retrieval tweak) — compare
-new_result = ragcheck.evaluate(question, new_answer, contexts, cached_llm)
-diff = ragcheck.compare([result], [new_result])
+new_result = evalops.evaluate(question, new_answer, contexts, cached_llm)
+diff = evalops.compare([result], [new_result])
 print(diff)
 # Top regressions:
 #   Q1: faithfulness 0.90 → 0.45  (Δ-0.45)
 # Net delta: faithfulness -0.45  answer_relevance +0.02  context_precision -0.01
 
 # 4. Block CI on quality drops — same mental model as jest snapshots
-ragcheck.assert_no_regression("baseline.json", new_result, tolerance=0.05)
+evalops.assert_no_regression("baseline.json", new_result, tolerance=0.05)
 # raises AssertionError with metric name if any score drops > 0.05
 ```
 
@@ -218,16 +220,16 @@ ragcheck.assert_no_regression("baseline.json", new_result, tolerance=0.05)
 
 ## Understand failures
 
-ragcheck tells you what went wrong, not just what the score was.
+evalops tells you what went wrong, not just what the score was.
 
 ```python
-result = ragcheck.evaluate(question, answer, contexts, llm_fn)
+result = evalops.evaluate(question, answer, contexts, llm_fn)
 
 # Human-readable failure labels — no extra LLM calls
 print(result.failure_modes)   # ["hallucination", "retrieval_miss"]
 
 # Know what your eval suite costs per CI run
-result = ragcheck.evaluate(..., model="gpt-4o-mini")
+result = evalops.evaluate(..., model="gpt-4o-mini")
 print(result.tokens_used)          # int
 print(result.estimated_cost_usd)   # float
 
@@ -235,24 +237,24 @@ print(result.estimated_cost_usd)   # float
 print(result.to_markdown())
 
 # Track quality trends over time
-history = ragcheck.History("ragcheck.db")
+history = evalops.History("evalops.db")
 history.log(results, label="after-prompt-v3")
 history.trend("faithfulness", days=30)   # [(timestamp, avg_score), ...]
 history.regressions(since="2026-04-01") # runs where scores dropped
 history.summary()                        # {metric: latest_avg}
 
 # Async evaluation for large test suites
-results = await ragcheck.aevaluate_batch(items, llm_fn, concurrency=5)
+results = await evalops.aevaluate_batch(items, llm_fn, concurrency=5)
 ```
 
 ---
 
 ## Claim decomposition
 
-For higher-fidelity faithfulness scoring, ragcheck can break the answer into individual atomic claims and verify each one separately. Scores come with an audit trail showing exactly which claims weren't supported.
+For higher-fidelity faithfulness scoring, evalops can break the answer into individual atomic claims and verify each one separately. Scores come with an audit trail showing exactly which claims weren't supported.
 
 ```python
-result = ragcheck.evaluate(
+result = evalops.evaluate(
     question="...",
     answer="...",
     contexts=[...],
@@ -264,7 +266,7 @@ print(result.faithfulness)                  # fraction of supported claims, e.g.
 print(result.reasoning["faithfulness"])     # "3/4 claims supported. Unsupported: 'temperatures reach 500°C'"
 ```
 
-When decomposition fails (unparseable LLM response), ragcheck falls back to the standard single-prompt faithfulness scoring automatically.
+When decomposition fails (unparseable LLM response), evalops falls back to the standard single-prompt faithfulness scoring automatically.
 
 ---
 
@@ -273,7 +275,7 @@ When decomposition fails (unparseable LLM response), ragcheck falls back to the 
 A single eval score is a point estimate. `evaluate_with_confidence` runs evaluation `n` times and reports how stable the scores are.
 
 ```python
-result = ragcheck.evaluate_with_confidence(
+result = evalops.evaluate_with_confidence(
     question="...",
     answer="...",
     contexts=[...],
@@ -300,14 +302,14 @@ All kwargs supported by `evaluate()` work here too (e.g. `include_context_recall
 
 ## Compared to RAGAS
 
-| | ragcheck | RAGAS |
+| | evalops | RAGAS |
 |---|---|---|
 | Ground truth required | No | Some metrics yes |
 | Mandatory dependencies | None | Several |
 | LLM flexibility | Any callable | OpenAI-first |
 | Custom metrics | Pass a prompt function | Subclass-based |
 | Batch evaluation | `evaluate_batch()` | Built-in dataset support |
-| Install | `pip install ragcheck` | Framework adoption |
+| Install | `pip install evalops` | Framework adoption |
 
 ---
 

@@ -2,7 +2,7 @@
 External developer simulation tests.
 
 These tests are written from the perspective of a developer who just ran
-"pip install ragcheck" and is trying it out for the first time. They follow
+"pip install evalops" and is trying it out for the first time. They follow
 the README exactly and test the things a real user would actually try.
 
 Run with a real LLM:
@@ -41,7 +41,7 @@ def make_groq_llm_fn():
             headers={
                 "Authorization": f"Bearer {GROQ_API_KEY}",
                 "Content-Type": "application/json",
-                "User-Agent": "ragcheck-external-test/0.2.0",
+                "User-Agent": "evalops-external-test/0.2.0",
             },
         )
         with urllib.request.urlopen(req) as resp:
@@ -65,11 +65,11 @@ def rate_limit_pause():
 @requires_groq
 def test_readme_quickstart_works_exactly_as_shown():
     """The exact code block from the README should run without modification."""
-    import ragcheck
+    import evalops
 
     llm_fn = make_groq_llm_fn()
 
-    result = ragcheck.evaluate(
+    result = evalops.evaluate(
         question="What causes the northern lights?",
         answer="Charged particles from the sun collide with gases in Earth's atmosphere.",
         contexts=["Aurora borealis occurs when solar particles interact with the upper atmosphere."],
@@ -94,9 +94,9 @@ def test_readme_quickstart_works_exactly_as_shown():
 
 def test_lambda_llm_fn_works():
     """Developer passes a lambda instead of a named function -- README shows this pattern."""
-    import ragcheck
+    import evalops
 
-    result = ragcheck.evaluate(
+    result = evalops.evaluate(
         question="What is the capital of France?",
         answer="Paris.",
         contexts=["Paris is the capital of France."],
@@ -113,11 +113,11 @@ def test_lambda_llm_fn_works():
 @requires_groq
 def test_context_recall_section_of_readme():
     """Developer enables context_recall exactly as shown in the README."""
-    import ragcheck
+    import evalops
 
     llm_fn = make_groq_llm_fn()
 
-    result = ragcheck.evaluate(
+    result = evalops.evaluate(
         question="What is the boiling point of water?",
         answer="Water boils at 100 degrees Celsius.",
         contexts=["Water boils at 100 degrees Celsius at standard atmospheric pressure."],
@@ -141,7 +141,7 @@ def test_context_recall_section_of_readme():
 @requires_groq
 def test_custom_metric_section_of_readme():
     """Developer defines a conciseness metric exactly as shown in the README."""
-    import ragcheck
+    import evalops
 
     llm_fn = make_groq_llm_fn()
 
@@ -152,7 +152,7 @@ def test_custom_metric_section_of_readme():
             f'Respond ONLY with valid JSON: {{"score": <float 0-1>, "reasoning": "<one sentence>"}}'
         )
 
-    result = ragcheck.evaluate(
+    result = evalops.evaluate(
         question="What is the capital of France?",
         answer="Paris.",
         contexts=["Paris is the capital of France."],
@@ -173,7 +173,7 @@ def test_custom_metric_section_of_readme():
 @requires_groq
 def test_batch_eval_filter_pattern_from_readme():
     """Developer runs a batch and filters passing results -- the README pattern."""
-    import ragcheck
+    import evalops
 
     llm_fn = make_groq_llm_fn()
 
@@ -190,7 +190,7 @@ def test_batch_eval_filter_pattern_from_readme():
         },
     ]
 
-    results = ragcheck.evaluate_batch(items, llm_fn)
+    results = evalops.evaluate_batch(items, llm_fn)
     passing = [r for r in results if r.passed(threshold=0.7)]
 
     assert len(results) == 2
@@ -208,11 +208,11 @@ def test_batch_eval_filter_pattern_from_readme():
 @requires_groq
 def test_export_to_json_and_reload():
     """Developer serialises a result and reads it back -- common logging pattern."""
-    import ragcheck
+    import evalops
 
     llm_fn = make_groq_llm_fn()
 
-    result = ragcheck.evaluate(
+    result = evalops.evaluate(
         question="What is photosynthesis?",
         answer="Photosynthesis converts sunlight into food for plants.",
         contexts=["Plants use sunlight, water, and CO2 to produce glucose through photosynthesis."],
@@ -236,10 +236,10 @@ def test_export_to_json_and_reload():
 
 def test_mistake_passes_string_instead_of_list_for_contexts():
     """Developer accidentally passes a string for contexts instead of a list."""
-    import ragcheck
+    import evalops
 
     with pytest.raises(TypeError, match="contexts must be a list"):
-        ragcheck.evaluate(
+        evalops.evaluate(
             question="What is photosynthesis?",
             answer="Plants convert sunlight to food.",
             contexts="This should be a list",
@@ -249,10 +249,10 @@ def test_mistake_passes_string_instead_of_list_for_contexts():
 
 def test_mistake_passes_non_callable_llm():
     """Developer passes a string API key instead of a function by accident."""
-    import ragcheck
+    import evalops
 
     with pytest.raises(TypeError, match="llm_fn must be callable"):
-        ragcheck.evaluate(
+        evalops.evaluate(
             question="What is photosynthesis?",
             answer="Plants convert sunlight to food.",
             contexts=["Some context."],
@@ -262,10 +262,10 @@ def test_mistake_passes_non_callable_llm():
 
 def test_mistake_empty_question():
     """Developer forgets to fill in the question field."""
-    import ragcheck
+    import evalops
 
     with pytest.raises(ValueError, match="question"):
-        ragcheck.evaluate(
+        evalops.evaluate(
             question="",
             answer="Some answer.",
             contexts=["Some context."],
@@ -279,7 +279,7 @@ def test_mistake_empty_question():
 
 def test_ci_gate_pattern():
     """Developer uses passed() to fail a CI pipeline -- the exact README pattern."""
-    import ragcheck
+    import evalops
 
     # Simulate a bad RAG response
     call_count = 0
@@ -289,7 +289,7 @@ def test_ci_gate_pattern():
         score = 0.3 if call_count == 1 else 0.9
         return json.dumps({"score": score, "reasoning": "ok"})
 
-    result = ragcheck.evaluate(
+    result = evalops.evaluate(
         question="What is the capital of France?",
         answer="London is the capital of France.",
         contexts=["Paris is the capital of France."],

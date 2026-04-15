@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from typing import Callable, List, Optional
 
-from ragcheck.core import EvalResult, evaluate
+from evalops.core import EvalResult, evaluate
 
 
 async def aevaluate(

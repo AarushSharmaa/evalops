@@ -6,8 +6,8 @@ import tempfile
 
 import pytest
 
-from ragcheck.core import EvalResult
-from ragcheck.history import History
+from evalops.core import EvalResult
+from evalops.history import History
 
 
 def make_result(faithfulness=0.8, answer_relevance=0.8, context_precision=0.8,

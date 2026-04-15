@@ -4,7 +4,7 @@ import json
 from dataclasses import dataclass, field
 from typing import List
 
-from ragcheck.core import EvalResult
+from evalops.core import EvalResult
 
 _CORE_METRICS = ["faithfulness", "answer_relevance", "context_precision"]
 

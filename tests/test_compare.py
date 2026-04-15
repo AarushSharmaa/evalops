@@ -5,8 +5,8 @@ import json
 
 import pytest
 
-from ragcheck.compare import compare, CompareResult
-from ragcheck.core import EvalResult
+from evalops.compare import compare, CompareResult
+from evalops.core import EvalResult
 
 
 def make_result(faithfulness=0.8, answer_relevance=0.8, context_precision=0.8,

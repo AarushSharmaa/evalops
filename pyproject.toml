@@ -3,19 +3,19 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "ragcheck"
+name = "evalops"
 version = "1.0.0"
-description = "Lightweight RAG evaluation with failure mode labels, cost tracking, caching, and SQLite history. No ground truth needed."
+description = "LLM output evaluation for teams that ship. Failure modes, cost tracking, regression gates, and SQLite history. No ground truth needed."
 readme = "README.md"
 requires-python = ">=3.9"
 license = { file = "LICENSE" }
-keywords = ["rag", "llm", "evaluation", "nlp"]
+keywords = ["llm", "evaluation", "rag", "mlops", "ai-quality"]
 dependencies = []
 
 [project.optional-dependencies]
 dev = ["pytest>=7"]
 
 [project.urls]
-Homepage = "https://github.com/AarushSharmaa/ragcheck"
-Repository = "https://github.com/AarushSharmaa/ragcheck"
-Issues = "https://github.com/AarushSharmaa/ragcheck/issues"
+Homepage = "https://github.com/AarushSharmaa/evalops"
+Repository = "https://github.com/AarushSharmaa/evalops"
+Issues = "https://github.com/AarushSharmaa/evalops/issues"

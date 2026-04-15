@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to ragcheck are documented here.
+All notable changes to evalops are documented here.
 
 This project follows [Semantic Versioning](https://semver.org/) and
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) conventions.
@@ -15,7 +15,7 @@ Work in progress toward the next release. See the `dev` branch.
 
 ## [1.0.0] — 2026-04-15 — not yet released to PyPI
 
-The first production-ready release. ragcheck graduates from a one-off eval function
+The first production-ready release. evalops graduates from a one-off eval function
 into infrastructure for eval-driven development: regression gates, cost tracking,
 comparison diffs, caching, async evaluation, and a persistent eval history — all
 with zero mandatory dependencies.
@@ -33,7 +33,7 @@ with zero mandatory dependencies.
 #### Token and cost tracking
 - `EvalResult.tokens_used` — estimated token count across all LLM calls in a run
 - `EvalResult.estimated_cost_usd` — cost estimate using a built-in pricing table
-- `PRICING` dict exported from `ragcheck` — 11 models including GPT-4o, Claude Sonnet,
+- `PRICING` dict exported from `evalops` — 11 models including GPT-4o, Claude Sonnet,
   Gemini Flash, Llama 3 via Ollama/Groq (free tier)
 - `pricing={"input": ..., "output": ...}` keyword on `evaluate()` for custom or
   private model pricing
@@ -43,7 +43,7 @@ with zero mandatory dependencies.
   not a back-of-envelope calculation
 
 #### Before/after comparison
-- New module `ragcheck/compare.py`
+- New module `evalops/compare.py`
 - `compare(before, after) -> CompareResult` — diffs two lists of `EvalResult`
 - `CompareResult` fields: `net_delta`, `regressions`, `improvements`
 - `CompareResult.__str__()` — readable diff with top regressions, top improvements,
@@ -61,7 +61,7 @@ with zero mandatory dependencies.
 
 #### Baseline snapshots and regression gates
 - `EvalResult.save_baseline(path)` — write a result to a JSON file as a quality snapshot
-- `ragcheck.assert_no_regression(baseline, result, *, tolerance=0.05)` — raises
+- `evalops.assert_no_regression(baseline, result, *, tolerance=0.05)` — raises
   `AssertionError` naming the metric if any score drops beyond the tolerance
 - `baseline` accepts a file path string or a pre-loaded dict
 - Designed to drop into a pytest file and block CI on quality regressions
@@ -69,7 +69,7 @@ with zero mandatory dependencies.
   quality, not just code correctness
 
 #### LLM prompt caching
-- New module `ragcheck/cache.py`
+- New module `evalops/cache.py`
 - `make_cached_llm(llm_fn, cache) -> callable` — wraps any `llm_fn` with
   prompt-level caching
 - `cache=":memory:"` — in-process dict cache, isolated per `make_cached_llm` call
@@ -81,7 +81,7 @@ with zero mandatory dependencies.
   are free on the second run
 
 #### SQLite eval history
-- New module `ragcheck/history.py`
+- New module `evalops/history.py`
 - `History(db_path)` — creates the database on first use, no setup required
 - `History.log(results, label=None)` — persist a batch of results with an optional
   run label (e.g. `"after-prompt-v3"`)
@@ -90,11 +90,11 @@ with zero mandatory dependencies.
 - `History.regressions(since=None)` — runs where any metric average dropped vs the
   preceding run, optionally filtered by date
 - `History.summary()` — `{metric: latest_avg}` snapshot of the most recent run
-- Motivation: turns ragcheck from a checker into a monitor — catch slow drift, not
+- Motivation: turns evalops from a checker into a monitor — catch slow drift, not
   just sudden drops
 
 #### Async evaluation
-- New module `ragcheck/_async.py`
+- New module `evalops/_async.py`
 - `aevaluate(question, answer, contexts, llm_fn, **kwargs) -> EvalResult`
 - `aevaluate_batch(items, llm_fn, *, concurrency=5, **kwargs) -> List[EvalResult]`
 - Implemented via `asyncio.to_thread` — works with any synchronous `llm_fn`; users
@@ -126,7 +126,7 @@ with zero mandatory dependencies.
   vs ~0.68 for holistic scoring); RAGAS uses the same two-step approach
 
 #### Confidence intervals
-- New function `ragcheck.evaluate_with_confidence(question, answer, contexts, llm_fn,
+- New function `evalops.evaluate_with_confidence(question, answer, contexts, llm_fn,
   *, n=3, **kwargs) -> EvalResult`
 - Runs `evaluate()` n times, returns mean scores with per-metric confidence stats
 - `EvalResult.confidence` — new optional field, `None` by default (standard evaluate)
@@ -147,7 +147,7 @@ with zero mandatory dependencies.
 - `to_dict()` conditionally includes `failure_modes`, `tokens_used`,
   `estimated_cost_usd`, `confidence` only when non-empty/non-zero/non-None
 - `to_markdown()` conditionally renders a Score Stability table when `confidence` set
-- `ragcheck.__init__` now exports: `compare`, `CompareResult`, `make_cached_llm`,
+- `evalops.__init__` now exports: `compare`, `CompareResult`, `make_cached_llm`,
   `History`, `aevaluate`, `aevaluate_batch`, `assert_no_regression`, `PRICING`,
   `evaluate_with_confidence`
 
@@ -170,7 +170,7 @@ The first version published to PyPI. Established the core evaluation loop and th
 #### Core evaluation
 - `evaluate(question, answer, contexts, llm_fn) -> EvalResult` — evaluate a RAG
   response against three reference-free metrics with a single function call
-- `llm_fn: callable[[str], str]` — bring any LLM; ragcheck never imports a provider
+- `llm_fn: callable[[str], str]` — bring any LLM; evalops never imports a provider
 - Three metrics scored 0.0–1.0:
   - `faithfulness` — are all claims in the answer grounded in the context?
   - `answer_relevance` — does the answer address the question?
@@ -214,4 +214,4 @@ The first version published to PyPI. Established the core evaluation loop and th
 
 ---
 
-*ragcheck is MIT licensed. Source: [github.com/AarushSharmaa/ragcheck](https://github.com/AarushSharmaa/ragcheck)*
+*evalops is MIT licensed. Source: [github.com/AarushSharmaa/evalops](https://github.com/AarushSharmaa/evalops)*

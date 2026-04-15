@@ -47,14 +47,14 @@ def make_cached_llm(
     Args:
         llm_fn: The LLM callable to wrap. Contract: str → str.
         cache: Either ":memory:" for an in-process dict, or a file path
-               for a persistent SQLite database (e.g. "ragcheck.cache.db").
+               for a persistent SQLite database (e.g. "evalops.cache.db").
 
     Returns:
         A wrapped callable with the same signature as llm_fn.
 
     Example:
         cached_llm = make_cached_llm(my_llm, cache=":memory:")
-        result = ragcheck.evaluate(..., llm_fn=cached_llm)
+        result = evalops.evaluate(..., llm_fn=cached_llm)
     """
     if cache == ":memory:":
         mem = _MemoryCache()

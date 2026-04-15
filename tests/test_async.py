@@ -6,8 +6,8 @@ import json
 
 import pytest
 
-from ragcheck._async import aevaluate, aevaluate_batch
-from ragcheck.core import EvalResult
+from evalops._async import aevaluate, aevaluate_batch
+from evalops.core import EvalResult
 
 QUESTION = "What is the capital of France?"
 ANSWER = "The capital of France is Paris."
@@ -30,7 +30,7 @@ def test_aevaluate_returns_evalresult():
 
 
 def test_aevaluate_scores_match_sync_on_same_mock():
-    from ragcheck.core import evaluate
+    from evalops.core import evaluate
     llm = make_mock_llm(0.75)
     sync_result = evaluate(QUESTION, ANSWER, CONTEXTS, llm)
     async_result = run(aevaluate(QUESTION, ANSWER, CONTEXTS, llm))

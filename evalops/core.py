@@ -717,7 +717,7 @@ def assert_no_regression(
         tolerance: Maximum allowed score drop per metric. Default 0.05.
 
     Example (inside a pytest file):
-        ragcheck.assert_no_regression("baseline.json", new_result, tolerance=0.05)
+        evalops.assert_no_regression("baseline.json", new_result, tolerance=0.05)
     """
     if isinstance(baseline, str):
         baseline_dict = json.loads(Path(baseline).read_text(encoding="utf-8"))

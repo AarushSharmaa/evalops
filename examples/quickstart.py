@@ -1,5 +1,5 @@
 """
-ragcheck quickstart — Gemini example
+evalops quickstart — Gemini example
 
 Requirements:
     pip install google-generativeai python-dotenv
@@ -12,7 +12,7 @@ import os
 from dotenv import load_dotenv
 import google.generativeai as genai
 
-import ragcheck
+import evalops
 
 load_dotenv()
 
@@ -37,7 +37,7 @@ contexts = [
     "collide with oxygen and nitrogen atoms, releasing energy as visible light.",
 ]
 
-result = ragcheck.evaluate(question, answer, contexts, llm_fn=gemini_llm_fn)
+result = evalops.evaluate(question, answer, contexts, llm_fn=gemini_llm_fn)
 
 print(f"Faithfulness:       {result.faithfulness:.2f}  — {result.reasoning['faithfulness']}")
 print(f"Answer relevance:   {result.answer_relevance:.2f}  — {result.reasoning['answer_relevance']}")

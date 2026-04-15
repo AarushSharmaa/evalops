@@ -5,8 +5,8 @@ from unittest.mock import Mock
 
 import pytest
 
-import ragcheck
-from ragcheck import EvalResult, evaluate, evaluate_batch, assert_no_regression
+import evalops
+from evalops import EvalResult, evaluate, evaluate_batch, assert_no_regression
 
 
 def make_mock_llm(score: float, reasoning: str = "ok"):
@@ -895,7 +895,7 @@ def test_save_and_reload_round_trips_correctly():
 # Rubric-based prompts (prompt engineering upgrade)
 # ---------------------------------------------------------------------------
 
-from ragcheck.core import (
+from evalops.core import (
     _faithfulness_prompt, _answer_relevance_prompt,
     _context_precision_prompt, _context_recall_prompt,
 )
@@ -971,7 +971,7 @@ def test_rubric_prompts_work_with_cot_then_json():
 # Claim decomposition (prompt engineering upgrade)
 # ---------------------------------------------------------------------------
 
-from ragcheck.core import _parse_claims_array, _parse_verdicts
+from evalops.core import _parse_claims_array, _parse_verdicts
 
 
 def test_decompose_claims_default_false():
@@ -1150,7 +1150,7 @@ def test_decompose_claims_cost_includes_extra_calls():
 # evaluate_with_confidence (prompt engineering upgrade)
 # ---------------------------------------------------------------------------
 
-from ragcheck import evaluate_with_confidence
+from evalops import evaluate_with_confidence
 
 
 def test_evaluate_with_confidence_returns_evalresult():

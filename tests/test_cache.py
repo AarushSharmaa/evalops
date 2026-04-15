@@ -7,8 +7,8 @@ import tempfile
 
 import pytest
 
-from ragcheck.cache import make_cached_llm
-from ragcheck.core import evaluate
+from evalops.cache import make_cached_llm
+from evalops.core import evaluate
 
 QUESTION = "What is the capital of France?"
 ANSWER = "The capital of France is Paris."

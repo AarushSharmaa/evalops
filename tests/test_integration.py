@@ -52,7 +52,7 @@ def make_groq_llm_fn():
             headers={
                 "Authorization": f"Bearer {GROQ_API_KEY}",
                 "Content-Type": "application/json",
-                "User-Agent": "ragcheck-integration-tests/0.1.0",
+                "User-Agent": "evalops-integration-tests/0.1.0",
             },
         )
         with urllib.request.urlopen(req) as resp:
@@ -70,7 +70,7 @@ def make_groq_llm_fn():
 @requires_groq
 def test_real_llm_returns_evalresult_with_valid_scores():
     """Core contract: real LLM produces parseable scores in [0, 1]."""
-    from ragcheck import evaluate
+    from evalops import evaluate
 
     llm_fn = make_groq_llm_fn()
     result = evaluate(
@@ -91,7 +91,7 @@ def test_real_llm_returns_evalresult_with_valid_scores():
 @requires_groq
 def test_real_llm_no_parse_errors_on_clean_input():
     """A well-formed eval should produce zero parse errors from a real LLM."""
-    from ragcheck import evaluate
+    from evalops import evaluate
 
     llm_fn = make_groq_llm_fn()
     result = evaluate(
@@ -113,7 +113,7 @@ def test_real_llm_no_parse_errors_on_clean_input():
 @requires_groq
 def test_faithful_answer_scores_high_faithfulness():
     """An answer that directly quotes the context should score high on faithfulness."""
-    from ragcheck import evaluate
+    from evalops import evaluate
 
     llm_fn = make_groq_llm_fn()
     result = evaluate(
@@ -132,7 +132,7 @@ def test_faithful_answer_scores_high_faithfulness():
 @requires_groq
 def test_relevant_answer_scores_high_relevance():
     """A direct, on-topic answer should score high on answer_relevance."""
-    from ragcheck import evaluate
+    from evalops import evaluate
 
     llm_fn = make_groq_llm_fn()
     result = evaluate(
@@ -151,7 +151,7 @@ def test_relevant_answer_scores_high_relevance():
 @requires_groq
 def test_relevant_context_scores_high_precision():
     """Context that directly answers the question should score high on context_precision."""
-    from ragcheck import evaluate
+    from evalops import evaluate
 
     llm_fn = make_groq_llm_fn()
     result = evaluate(
@@ -174,7 +174,7 @@ def test_relevant_context_scores_high_precision():
 @requires_groq
 def test_hallucinated_answer_scores_low_faithfulness():
     """An answer that contradicts the context should score low on faithfulness."""
-    from ragcheck import evaluate
+    from evalops import evaluate
 
     llm_fn = make_groq_llm_fn()
     result = evaluate(
@@ -193,7 +193,7 @@ def test_hallucinated_answer_scores_low_faithfulness():
 @requires_groq
 def test_off_topic_answer_scores_low_relevance():
     """An answer that doesn't address the question should score low on answer_relevance."""
-    from ragcheck import evaluate
+    from evalops import evaluate
 
     llm_fn = make_groq_llm_fn()
     result = evaluate(
@@ -212,7 +212,7 @@ def test_off_topic_answer_scores_low_relevance():
 @requires_groq
 def test_irrelevant_context_scores_low_precision():
     """Context that doesn't relate to the question should score low on context_precision."""
-    from ragcheck import evaluate
+    from evalops import evaluate
 
     llm_fn = make_groq_llm_fn()
     result = evaluate(
@@ -238,7 +238,7 @@ def test_irrelevant_context_scores_low_precision():
 @requires_groq
 def test_passed_returns_bool_with_real_llm():
     """passed() should work correctly regardless of actual score values."""
-    from ragcheck import evaluate
+    from evalops import evaluate
 
     llm_fn = make_groq_llm_fn()
     result = evaluate(
@@ -260,7 +260,7 @@ def test_passed_returns_bool_with_real_llm():
 @requires_groq
 def test_question_containing_json_does_not_break_parsing():
     """If the question looks like JSON, it should not confuse the LLM response parsing."""
-    from ragcheck import evaluate
+    from evalops import evaluate
 
     llm_fn = make_groq_llm_fn()
     result = evaluate(
@@ -279,7 +279,7 @@ def test_question_containing_json_does_not_break_parsing():
 @requires_groq
 def test_answer_containing_json_does_not_corrupt_parsing():
     """An answer that contains JSON-like text should not corrupt the parser."""
-    from ragcheck import evaluate
+    from evalops import evaluate
 
     llm_fn = make_groq_llm_fn()
     result = evaluate(
@@ -300,7 +300,7 @@ def test_answer_containing_json_does_not_corrupt_parsing():
 @requires_groq
 def test_unicode_content_handled_correctly():
     """Non-ASCII content in all fields should not break prompt formatting or parsing."""
-    from ragcheck import evaluate
+    from evalops import evaluate
 
     llm_fn = make_groq_llm_fn()
     result = evaluate(
@@ -319,7 +319,7 @@ def test_unicode_content_handled_correctly():
 @requires_groq
 def test_mixed_language_question_and_english_context():
     """Question in one language, context in another — should not crash."""
-    from ragcheck import evaluate
+    from evalops import evaluate
 
     llm_fn = make_groq_llm_fn()
     result = evaluate(
@@ -340,7 +340,7 @@ def test_mixed_language_question_and_english_context():
 @requires_groq
 def test_many_context_chunks_handled():
     """15 context chunks — tests prompt size and formatting at realistic scale."""
-    from ragcheck import evaluate
+    from evalops import evaluate
 
     llm_fn = make_groq_llm_fn()
     contexts = [
@@ -381,7 +381,7 @@ def test_many_context_chunks_handled():
 @requires_groq
 def test_str_output_is_readable_with_real_reasoning():
     """__str__ should produce clean output even with real LLM-generated reasoning strings."""
-    from ragcheck import evaluate
+    from evalops import evaluate
 
     llm_fn = make_groq_llm_fn()
     result = evaluate(
@@ -407,7 +407,7 @@ def test_str_output_is_readable_with_real_reasoning():
 @requires_groq
 def test_context_recall_returns_valid_score():
     """context_recall should produce a parseable score in [0, 1]."""
-    from ragcheck import evaluate
+    from evalops import evaluate
 
     llm_fn = make_groq_llm_fn()
     result = evaluate(
@@ -427,7 +427,7 @@ def test_context_recall_returns_valid_score():
 @requires_groq
 def test_context_recall_high_for_complete_context():
     """Context that fully covers the answer should score high on recall."""
-    from ragcheck import evaluate
+    from evalops import evaluate
 
     llm_fn = make_groq_llm_fn()
     result = evaluate(
@@ -447,7 +447,7 @@ def test_context_recall_high_for_complete_context():
 @requires_groq
 def test_context_recall_low_for_missing_context():
     """Context that doesn't contain the answer should score low on recall."""
-    from ragcheck import evaluate
+    from evalops import evaluate
 
     llm_fn = make_groq_llm_fn()
     result = evaluate(
@@ -474,7 +474,7 @@ def test_context_recall_low_for_missing_context():
 @requires_groq
 def test_custom_metric_returns_valid_score():
     """A user-defined prompt function should produce a parseable score."""
-    from ragcheck import evaluate
+    from evalops import evaluate
 
     def conciseness_prompt(question: str, answer: str, contexts: list) -> str:
         return (
@@ -506,7 +506,7 @@ def test_custom_metric_returns_valid_score():
 def test_to_json_round_trips_with_real_reasoning():
     """to_json() should produce valid JSON even with real LLM-generated reasoning strings."""
     import json as _json
-    from ragcheck import evaluate
+    from evalops import evaluate
 
     llm_fn = make_groq_llm_fn()
     result = evaluate(
@@ -530,7 +530,7 @@ def test_to_json_round_trips_with_real_reasoning():
 @requires_groq
 def test_evaluate_batch_real_llm():
     """evaluate_batch should return one EvalResult per item, all with valid scores."""
-    from ragcheck import evaluate_batch
+    from evalops import evaluate_batch
 
     llm_fn = make_groq_llm_fn()
     batch = [
