@@ -13,7 +13,7 @@ Work in progress toward the next release. See the `dev` branch.
 
 ---
 
-## [1.0.0] — 2026-04-14 — not yet released to PyPI
+## [1.0.0] — 2026-04-15 — not yet released to PyPI
 
 The first production-ready release. ragcheck graduates from a one-off eval function
 into infrastructure for eval-driven development: regression gates, cost tracking,
@@ -104,14 +104,52 @@ with zero mandatory dependencies.
 - Motivation: 50 items × 3 LLM calls = 150 serial calls synchronously; with
   `concurrency=5` that becomes ~30 batches, practical for large overnight test suites
 
+#### Rubric-based prompts with chain-of-thought
+- All four metric prompts rewritten with 5-level scoring rubrics, CoT instructions,
+  and two calibration examples per metric (one high-score, one low-score)
+- Research backing: Prometheus (rubric anchors reduce score variance 15-25%), G-Eval
+  (CoT before scoring improves human correlation ~0.05 Spearman), few-shot calibration
+  (2-3 examples reduce run-to-run variance 10-20%)
+- No API change — `_parse_llm_json` already handles CoT prose before JSON via regex
+  fallback; weaker models that skip CoT still parse correctly
+
+#### Claim decomposition for faithfulness
+- `decompose_claims=True` keyword on `evaluate()` — two-step faithfulness path
+- Step 1: decompose the answer into atomic claims (one extra LLM call)
+- Step 2: verify each claim against the retrieved context (one extra LLM call)
+- `result.faithfulness` becomes the fraction of supported claims (still 0.0–1.0)
+- `result.reasoning["faithfulness"]` contains an audit trail: "3/4 claims supported.
+  Unsupported: 'temperatures reach 500°C'"
+- Falls back silently to standard single-prompt faithfulness if decomposition returns
+  no parseable claims — no errors raised on bad LLM output
+- Research backing: FActScore (claim decomposition achieves ~0.89 human correlation
+  vs ~0.68 for holistic scoring); RAGAS uses the same two-step approach
+
+#### Confidence intervals
+- New function `ragcheck.evaluate_with_confidence(question, answer, contexts, llm_fn,
+  *, n=3, **kwargs) -> EvalResult`
+- Runs `evaluate()` n times, returns mean scores with per-metric confidence stats
+- `EvalResult.confidence` — new optional field, `None` by default (standard evaluate)
+- Per-metric dict: `mean`, `std`, `ci_lower`, `ci_upper` (95% CI), `scores` list
+- 95% CI formula: `mean ± 1.96 * (std / sqrt(n))`, clamped to [0, 1]
+- `to_dict()` includes `confidence` when present; `to_markdown()` renders a Score
+  Stability table with mean ± std and CI bounds
+- `tokens_used` and `estimated_cost_usd` are summed across all n runs
+- Research backing: ARES (calibrated confidence intervals dramatically improve trust
+  in automated evals)
+
 ### Changed
 - `EvalResult` gains three new optional fields: `failure_modes`, `tokens_used`,
   `estimated_cost_usd` — all default to empty/zero, no existing code breaks
+- `EvalResult` gains one additional optional field: `confidence` — `None` by default
 - `evaluate()` gains two new keyword-only params: `model=None`, `pricing=None`
+- `evaluate()` gains one new keyword-only param: `decompose_claims=False`
 - `to_dict()` conditionally includes `failure_modes`, `tokens_used`,
-  `estimated_cost_usd` only when non-empty/non-zero — existing consumers unaffected
+  `estimated_cost_usd`, `confidence` only when non-empty/non-zero/non-None
+- `to_markdown()` conditionally renders a Score Stability table when `confidence` set
 - `ragcheck.__init__` now exports: `compare`, `CompareResult`, `make_cached_llm`,
-  `History`, `aevaluate`, `aevaluate_batch`, `assert_no_regression`, `PRICING`
+  `History`, `aevaluate`, `aevaluate_batch`, `assert_no_regression`, `PRICING`,
+  `evaluate_with_confidence`
 
 ### Fixed
 - SQLite on Windows holds file handles open even after exiting a

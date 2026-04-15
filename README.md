@@ -247,6 +247,57 @@ results = await ragcheck.aevaluate_batch(items, llm_fn, concurrency=5)
 
 ---
 
+## Claim decomposition
+
+For higher-fidelity faithfulness scoring, ragcheck can break the answer into individual atomic claims and verify each one separately. Scores come with an audit trail showing exactly which claims weren't supported.
+
+```python
+result = ragcheck.evaluate(
+    question="...",
+    answer="...",
+    contexts=[...],
+    llm_fn=llm_fn,
+    decompose_claims=True,  # adds 2 extra LLM calls for faithfulness
+)
+
+print(result.faithfulness)                  # fraction of supported claims, e.g. 0.75
+print(result.reasoning["faithfulness"])     # "3/4 claims supported. Unsupported: 'temperatures reach 500°C'"
+```
+
+When decomposition fails (unparseable LLM response), ragcheck falls back to the standard single-prompt faithfulness scoring automatically.
+
+---
+
+## Confidence intervals
+
+A single eval score is a point estimate. `evaluate_with_confidence` runs evaluation `n` times and reports how stable the scores are.
+
+```python
+result = ragcheck.evaluate_with_confidence(
+    question="...",
+    answer="...",
+    contexts=[...],
+    llm_fn=llm_fn,
+    n=3,  # number of runs (default 3)
+)
+
+print(result.faithfulness)  # mean across runs
+
+ci = result.confidence["faithfulness"]
+print(ci["mean"])      # 0.82
+print(ci["std"])       # 0.04
+print(ci["ci_lower"])  # 0.74
+print(ci["ci_upper"])  # 0.90
+print(ci["scores"])    # [0.8, 0.85, 0.8]
+
+# Confidence also appears in to_markdown() and to_dict()
+print(result.to_markdown())  # includes a Score Stability table
+```
+
+All kwargs supported by `evaluate()` work here too (e.g. `include_context_recall`, `model`, `decompose_claims`).
+
+---
+
 ## Compared to RAGAS
 
 | | ragcheck | RAGAS |

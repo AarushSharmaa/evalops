@@ -889,3 +889,373 @@ def test_save_and_reload_round_trips_correctly():
         assert_no_regression(path, result)  # load from file path — should not raise
     finally:
         os.unlink(path)
+
+
+# ---------------------------------------------------------------------------
+# Rubric-based prompts (prompt engineering upgrade)
+# ---------------------------------------------------------------------------
+
+from ragcheck.core import (
+    _faithfulness_prompt, _answer_relevance_prompt,
+    _context_precision_prompt, _context_recall_prompt,
+)
+
+
+def test_faithfulness_prompt_contains_rubric_anchors():
+    prompt = _faithfulness_prompt(QUESTION, ANSWER, CONTEXTS)
+    assert "1.0" in prompt
+    assert "0.0" in prompt
+    assert "0.5" in prompt
+
+
+def test_faithfulness_prompt_contains_cot_instruction():
+    prompt = _faithfulness_prompt(QUESTION, ANSWER, CONTEXTS)
+    assert "step by step" in prompt.lower()
+
+
+def test_faithfulness_prompt_contains_examples():
+    prompt = _faithfulness_prompt(QUESTION, ANSWER, CONTEXTS)
+    # Two example JSON blocks with score keys
+    import re
+    example_blocks = re.findall(r'\{"score":', prompt)
+    assert len(example_blocks) >= 2
+
+
+def test_answer_relevance_prompt_contains_rubric_anchors():
+    prompt = _answer_relevance_prompt(QUESTION, ANSWER)
+    assert "1.0" in prompt
+    assert "0.0" in prompt
+    assert "0.5" in prompt
+
+
+def test_context_precision_prompt_contains_rubric_anchors():
+    prompt = _context_precision_prompt(QUESTION, CONTEXTS)
+    assert "1.0" in prompt
+    assert "0.0" in prompt
+    assert "0.5" in prompt
+
+
+def test_context_recall_prompt_contains_rubric_anchors():
+    prompt = _context_recall_prompt(QUESTION, ANSWER, CONTEXTS)
+    assert "1.0" in prompt
+    assert "0.0" in prompt
+    assert "0.5" in prompt
+
+
+def test_all_prompts_end_with_json_instruction():
+    prompts = [
+        _faithfulness_prompt(QUESTION, ANSWER, CONTEXTS),
+        _answer_relevance_prompt(QUESTION, ANSWER),
+        _context_precision_prompt(QUESTION, CONTEXTS),
+        _context_recall_prompt(QUESTION, ANSWER, CONTEXTS),
+    ]
+    for prompt in prompts:
+        assert '"score"' in prompt.split("Respond")[-1]
+
+
+def test_rubric_prompts_still_work_with_simple_json_response():
+    llm = lambda prompt: '{"score": 0.8, "reasoning": "ok"}'
+    result = evaluate(QUESTION, ANSWER, CONTEXTS, llm)
+    assert result.faithfulness == 0.8
+    assert result.parse_errors == []
+
+
+def test_rubric_prompts_work_with_cot_then_json():
+    llm = lambda prompt: 'Let me think... claim 1 is supported... {"score": 0.8, "reasoning": "most claims backed"}'
+    result = evaluate(QUESTION, ANSWER, CONTEXTS, llm)
+    assert result.faithfulness == 0.8
+    assert result.parse_errors == []
+
+
+# ---------------------------------------------------------------------------
+# Claim decomposition (prompt engineering upgrade)
+# ---------------------------------------------------------------------------
+
+from ragcheck.core import _parse_claims_array, _parse_verdicts
+
+
+def test_decompose_claims_default_false():
+    mock = Mock(return_value=json.dumps({"score": 0.8, "reasoning": "ok"}))
+    evaluate(QUESTION, ANSWER, CONTEXTS, mock)
+    assert mock.call_count == 3
+
+
+def test_decompose_claims_true_calls_llm_5_times():
+    call_count = [0]
+    def llm(prompt):
+        call_count[0] += 1
+        if call_count[0] == 4:
+            return '["The capital of France is Paris."]'
+        if call_count[0] == 5:
+            return json.dumps({"verdicts": [{"claim": "The capital of France is Paris.", "supported": True, "reasoning": "context confirms"}]})
+        return json.dumps({"score": 0.8, "reasoning": "ok"})
+    evaluate(QUESTION, ANSWER, CONTEXTS, llm, decompose_claims=True)
+    assert call_count[0] == 5
+
+
+def test_decompose_claims_score_is_fraction():
+    """4 claims, 3 supported → faithfulness = 0.75"""
+    call_count = [0]
+    def llm(prompt):
+        call_count[0] += 1
+        if call_count[0] == 4:
+            return '["claim1", "claim2", "claim3", "claim4"]'
+        if call_count[0] == 5:
+            return json.dumps({"verdicts": [
+                {"claim": "claim1", "supported": True, "reasoning": "ok"},
+                {"claim": "claim2", "supported": True, "reasoning": "ok"},
+                {"claim": "claim3", "supported": True, "reasoning": "ok"},
+                {"claim": "claim4", "supported": False, "reasoning": "not found"},
+            ]})
+        return json.dumps({"score": 0.9, "reasoning": "ok"})
+    result = evaluate(QUESTION, ANSWER, CONTEXTS, llm, decompose_claims=True)
+    assert result.faithfulness == pytest.approx(0.75)
+
+
+def test_decompose_claims_all_supported():
+    call_count = [0]
+    def llm(prompt):
+        call_count[0] += 1
+        if call_count[0] == 4:
+            return '["claim1", "claim2"]'
+        if call_count[0] == 5:
+            return json.dumps({"verdicts": [
+                {"claim": "claim1", "supported": True, "reasoning": "ok"},
+                {"claim": "claim2", "supported": True, "reasoning": "ok"},
+            ]})
+        return json.dumps({"score": 0.5, "reasoning": "ok"})
+    result = evaluate(QUESTION, ANSWER, CONTEXTS, llm, decompose_claims=True)
+    assert result.faithfulness == pytest.approx(1.0)
+
+
+def test_decompose_claims_none_supported():
+    call_count = [0]
+    def llm(prompt):
+        call_count[0] += 1
+        if call_count[0] == 4:
+            return '["fabricated claim"]'
+        if call_count[0] == 5:
+            return json.dumps({"verdicts": [
+                {"claim": "fabricated claim", "supported": False, "reasoning": "not in context"},
+            ]})
+        return json.dumps({"score": 0.9, "reasoning": "ok"})
+    result = evaluate(QUESTION, ANSWER, CONTEXTS, llm, decompose_claims=True)
+    assert result.faithfulness == pytest.approx(0.0)
+
+
+def test_decompose_claims_reasoning_contains_claim_count():
+    call_count = [0]
+    def llm(prompt):
+        call_count[0] += 1
+        if call_count[0] == 4:
+            return '["claim1", "claim2"]'
+        if call_count[0] == 5:
+            return json.dumps({"verdicts": [
+                {"claim": "claim1", "supported": True, "reasoning": "ok"},
+                {"claim": "claim2", "supported": False, "reasoning": "not found"},
+            ]})
+        return json.dumps({"score": 0.9, "reasoning": "ok"})
+    result = evaluate(QUESTION, ANSWER, CONTEXTS, llm, decompose_claims=True)
+    assert "1/2" in result.reasoning["faithfulness"]
+    assert "supported" in result.reasoning["faithfulness"]
+
+
+def test_decompose_claims_unsupported_claims_in_reasoning():
+    call_count = [0]
+    def llm(prompt):
+        call_count[0] += 1
+        if call_count[0] == 4:
+            return '["valid claim", "bogus fabricated fact"]'
+        if call_count[0] == 5:
+            return json.dumps({"verdicts": [
+                {"claim": "valid claim", "supported": True, "reasoning": "ok"},
+                {"claim": "bogus fabricated fact", "supported": False, "reasoning": "not in context"},
+            ]})
+        return json.dumps({"score": 0.9, "reasoning": "ok"})
+    result = evaluate(QUESTION, ANSWER, CONTEXTS, llm, decompose_claims=True)
+    assert "bogus fabricated fact" in result.reasoning["faithfulness"]
+
+
+def test_decompose_claims_fallback_on_bad_decomposition():
+    """If decompose returns unparseable output, falls back to standard faithfulness."""
+    call_count = [0]
+    def llm(prompt):
+        call_count[0] += 1
+        if call_count[0] == 4:
+            return "I cannot decompose this. No JSON here."
+        return json.dumps({"score": 0.72, "reasoning": "standard eval"})
+    result = evaluate(QUESTION, ANSWER, CONTEXTS, llm, decompose_claims=True)
+    # Fallback: faithfulness from standard call (call 1) = 0.72
+    assert result.faithfulness == pytest.approx(0.72)
+    assert call_count[0] == 4  # 3 standard + 1 failed decompose, no verify
+
+
+def test_decompose_claims_works_with_include_context_recall():
+    # Order: faith(1), relevance(2), precision(3), decompose(4), verify(5), recall(6)
+    call_count = [0]
+    def llm(prompt):
+        call_count[0] += 1
+        if call_count[0] == 4:
+            return '["claim1"]'
+        if call_count[0] == 5:
+            return json.dumps({"verdicts": [{"claim": "claim1", "supported": True, "reasoning": "ok"}]})
+        return json.dumps({"score": 0.8, "reasoning": "ok"})
+    result = evaluate(QUESTION, ANSWER, CONTEXTS, llm, decompose_claims=True, include_context_recall=True)
+    assert call_count[0] == 6
+    assert result.context_recall is not None
+
+
+def test_parse_claims_array_valid_json():
+    result = _parse_claims_array('["claim1", "claim2"]')
+    assert result == ["claim1", "claim2"]
+
+
+def test_parse_claims_array_json_in_prose():
+    result = _parse_claims_array('Here are the claims: ["claim1", "claim2"] extracted.')
+    assert result == ["claim1", "claim2"]
+
+
+def test_parse_claims_array_garbage():
+    result = _parse_claims_array("not json at all")
+    assert result == []
+
+
+def test_parse_verdicts_valid():
+    response = json.dumps({"verdicts": [{"claim": "x", "supported": True, "reasoning": "y"}]})
+    result = _parse_verdicts(response)
+    assert result == [True]
+
+
+def test_parse_verdicts_garbage():
+    result = _parse_verdicts("garbage")
+    assert result == []
+
+
+def test_decompose_claims_cost_includes_extra_calls():
+    """tokens_used when decompose_claims=True should exceed standard 3-call run."""
+    call_count = [0]
+    def llm(prompt):
+        call_count[0] += 1
+        if call_count[0] == 4:
+            return '["claim1"]'
+        if call_count[0] == 5:
+            return json.dumps({"verdicts": [{"claim": "claim1", "supported": True, "reasoning": "ok"}]})
+        return json.dumps({"score": 0.8, "reasoning": "ok"})
+    r_standard = evaluate(QUESTION, ANSWER, CONTEXTS, make_mock_llm(0.8))
+    r_decomposed = evaluate(QUESTION, ANSWER, CONTEXTS, llm, decompose_claims=True)
+    assert r_decomposed.tokens_used > r_standard.tokens_used
+
+
+# ---------------------------------------------------------------------------
+# evaluate_with_confidence (prompt engineering upgrade)
+# ---------------------------------------------------------------------------
+
+from ragcheck import evaluate_with_confidence
+
+
+def test_evaluate_with_confidence_returns_evalresult():
+    result = evaluate_with_confidence(QUESTION, ANSWER, CONTEXTS, make_mock_llm(0.8), n=2)
+    assert isinstance(result, EvalResult)
+
+
+def test_evaluate_with_confidence_has_confidence_field():
+    result = evaluate_with_confidence(QUESTION, ANSWER, CONTEXTS, make_mock_llm(0.8), n=2)
+    assert result.confidence is not None
+
+
+def test_evaluate_with_confidence_n_less_than_2_raises():
+    with pytest.raises(ValueError, match="n must be >= 2"):
+        evaluate_with_confidence(QUESTION, ANSWER, CONTEXTS, make_mock_llm(0.8), n=1)
+
+
+def test_evaluate_with_confidence_calls_evaluate_n_times():
+    mock = Mock(return_value=json.dumps({"score": 0.7, "reasoning": "ok"}))
+    evaluate_with_confidence(QUESTION, ANSWER, CONTEXTS, mock, n=3)
+    assert mock.call_count == 9  # 3 metrics × 3 runs
+
+
+def test_evaluate_with_confidence_mean_is_average():
+    """Mock returns alternating scores so mean is calculable."""
+    scores_seq = [0.6, 0.8, 1.0]
+    call_count = [0]
+    run_count = [0]
+
+    def llm(prompt):
+        call_count[0] += 1
+        # Every 3 calls = 1 run. Use the run index to set faithfulness score.
+        if call_count[0] % 3 == 1:  # first call of each run = faithfulness
+            score = scores_seq[run_count[0] % len(scores_seq)]
+            run_count[0] += 1
+        else:
+            score = 0.8
+        return json.dumps({"score": score, "reasoning": "ok"})
+
+    result = evaluate_with_confidence(QUESTION, ANSWER, CONTEXTS, llm, n=3)
+    expected_mean = sum(scores_seq) / 3
+    assert result.faithfulness == pytest.approx(expected_mean, abs=0.01)
+
+
+def test_evaluate_with_confidence_std_is_correct():
+    scores_seq = [0.6, 0.8, 1.0]
+    call_count = [0]
+    run_count = [0]
+
+    def llm(prompt):
+        call_count[0] += 1
+        if call_count[0] % 3 == 1:
+            score = scores_seq[run_count[0] % len(scores_seq)]
+            run_count[0] += 1
+        else:
+            score = 0.8
+        return json.dumps({"score": score, "reasoning": "ok"})
+
+    result = evaluate_with_confidence(QUESTION, ANSWER, CONTEXTS, llm, n=3)
+    mean = sum(scores_seq) / 3
+    variance = sum((s - mean) ** 2 for s in scores_seq) / 2  # sample variance
+    expected_std = variance ** 0.5
+    assert result.confidence["faithfulness"]["std"] == pytest.approx(expected_std, abs=0.01)
+
+
+def test_evaluate_with_confidence_ci_clamped_to_01():
+    result = evaluate_with_confidence(QUESTION, ANSWER, CONTEXTS, make_mock_llm(0.0), n=2)
+    for stats in result.confidence.values():
+        assert stats["ci_lower"] >= 0.0
+        assert stats["ci_upper"] <= 1.0
+
+
+def test_evaluate_with_confidence_scores_list_present():
+    result = evaluate_with_confidence(QUESTION, ANSWER, CONTEXTS, make_mock_llm(0.8), n=3)
+    assert len(result.confidence["faithfulness"]["scores"]) == 3
+
+
+def test_evaluate_with_confidence_aggregates_cost():
+    r_single = evaluate(QUESTION, ANSWER, CONTEXTS, make_mock_llm(0.8), model="gpt-4o-mini")
+    r_conf = evaluate_with_confidence(QUESTION, ANSWER, CONTEXTS, make_mock_llm(0.8),
+                                      n=3, model="gpt-4o-mini")
+    assert r_conf.tokens_used == pytest.approx(r_single.tokens_used * 3, rel=0.05)
+
+
+def test_evaluate_with_confidence_in_to_dict():
+    result = evaluate_with_confidence(QUESTION, ANSWER, CONTEXTS, make_mock_llm(0.8), n=2)
+    d = result.to_dict()
+    assert "confidence" in d
+    assert "faithfulness" in d["confidence"]
+
+
+def test_evaluate_with_confidence_in_to_markdown():
+    result = evaluate_with_confidence(QUESTION, ANSWER, CONTEXTS, make_mock_llm(0.8), n=2)
+    md = result.to_markdown()
+    assert "Score Stability" in md
+    assert "95% CI" in md
+
+
+def test_evaluate_with_confidence_absent_by_default():
+    result = evaluate(QUESTION, ANSWER, CONTEXTS, make_mock_llm(0.8))
+    assert result.confidence is None
+
+
+def test_evaluate_with_confidence_forwards_kwargs():
+    mock = Mock(return_value=json.dumps({"score": 0.7, "reasoning": "ok"}))
+    result = evaluate_with_confidence(QUESTION, ANSWER, CONTEXTS, mock,
+                                      n=2, include_context_recall=True)
+    assert "context_recall" in result.confidence

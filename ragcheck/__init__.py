@@ -1,4 +1,4 @@
-from ragcheck.core import evaluate, evaluate_batch, EvalResult, assert_no_regression, PRICING
+from ragcheck.core import evaluate, evaluate_batch, evaluate_with_confidence, EvalResult, assert_no_regression, PRICING
 from ragcheck.compare import compare, CompareResult
 from ragcheck.cache import make_cached_llm
 from ragcheck.history import History
@@ -7,6 +7,7 @@ from ragcheck._async import aevaluate, aevaluate_batch
 __all__ = [
     "evaluate",
     "evaluate_batch",
+    "evaluate_with_confidence",
     "EvalResult",
     "assert_no_regression",
     "PRICING",
