@@ -3,7 +3,6 @@
 LLM output evaluation for teams that ship. Failure modes, regression gates, cost tracking, and quality history. No ground truth required, no framework lock-in.
 
 [![PyPI](https://img.shields.io/pypi/v/evalsystem.svg)](https://pypi.org/project/evalsystem/)
-[![Python](https://img.shields.io/pypi/pyversions/evalsystem.svg)](https://pypi.org/project/evalsystem/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 > *Because "it seemed fine in testing" is not an ops strategy.*
